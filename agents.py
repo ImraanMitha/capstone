@@ -8,7 +8,7 @@ from utils import *
 
 # agent consists of four networks, critic/actor and main/target
 class DDPGagent:
-    def __init__(self, env, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-3, gamma=0.99, tau=1e-2, noise_std = 36, replay_buffer_size=50000):
+    def __init__(self, env, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-2, noise_std = 36, replay_buffer_size=50000):
         # Params
         self.num_actions = len(env.configuration)
         self.num_states = len(env.state)

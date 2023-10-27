@@ -12,7 +12,7 @@ batch_size = 128
 rewards = []
 avg_rewards = []
 
-for episode in range(50):
+for episode in range(100):
     if episode % 10 == 0:
         print(f"Episode: {episode}")
 
