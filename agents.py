@@ -8,7 +8,7 @@ from utils import *
 
 # agent consists of four networks, critic/actor and main/target
 class DDPGagent:
-    def __init__(self, env, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-2, noise_std = 36, replay_buffer_size=50000):
+    def __init__(self, env, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.8, tau=1e-2, noise_std = 0.05*np.pi, replay_buffer_size=50000):
         # Params
         self.num_actions = len(env.configuration)
         self.num_states = len(env.state)
@@ -19,9 +19,12 @@ class DDPGagent:
         # Networks
         self.actor = Actor(self.num_states, hidden_size, self.num_actions)
         self.actor_target = Actor(self.num_states, hidden_size, self.num_actions)
-        self.critic = Critic(self.num_states + self.num_actions, hidden_size, self.num_actions)
-        self.critic_target = Critic(self.num_states + self.num_actions, hidden_size, self.num_actions)
 
+        # changed critic outputs from num_actions to 1
+        self.critic = Critic(self.num_states + self.num_actions, hidden_size, 1)
+        self.critic_target = Critic(self.num_states + self.num_actions, hidden_size, 1)
+
+        # this seems like a stupid way to do this, surely theres a better way
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data)
 
@@ -39,25 +42,25 @@ class DDPGagent:
         action = self.actor.forward(state)
         action = action.squeeze().detach().numpy()
         if add_noise:
-            noise = np.random.normal(0, self.noise_std, action.shape) # think action is a tensor so it might not work with .shape
+            noise = np.random.normal(0, self.noise_std, action.shape)
             action = action + noise 
 
-        return np.clip(action, -np.pi, np.pi) #TODO: need to clip based on limits of particular joint, for now just clipping to 0, 360 for rotatry joint 
+        return np.clip(action, -np.pi, np.pi) #TODO: need to clip based on limits of particular joint
     
     
     def update(self, batch_size):
-        states, actions, rewards, next_states, _ = self.replay_buffer.sample(batch_size) #dont use done batch rn
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn
         # also why am I using FloatTensor instead of just tensor?
-        states = torch.FloatTensor(np.array(states))
-        actions = torch.FloatTensor(np.array(actions))
-        rewards = torch.FloatTensor(np.array(rewards))
-        next_states = torch.FloatTensor(np.array(next_states))
+        states = torch.FloatTensor(states)
+        actions = torch.FloatTensor(actions)
+        rewards = torch.FloatTensor(rewards)
+        next_states = torch.FloatTensor(next_states)
     
         # Critic loss        
         Qvals = self.critic.forward(states, actions)
         next_actions = self.actor_target.forward(next_states)
         next_Q = self.critic_target.forward(next_states, next_actions.detach())
-        Qprime = rewards + self.gamma * next_Q
+        Qprime = rewards + self.gamma * next_Q # yi in paper I thik 
         critic_loss = self.critic_criterion(Qvals, Qprime)
 
         # Actor loss

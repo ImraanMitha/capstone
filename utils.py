@@ -19,8 +19,10 @@ class ReplayBuffer:
         done_batch = []
 
         batch = random.sample(self.buffer, batch_size)
+        print(f'in buffer.sample: {type(batch)}')
 
         for experience in batch:
+            print(type(experience))
             state, action, reward, next_state, done = experience
             state_batch.append(state)
             action_batch.append(action)
@@ -28,7 +30,7 @@ class ReplayBuffer:
             next_state_batch.append(next_state)
             done_batch.append(done)
         
-        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
+        return np.array(state_batch), np.array(action_batch), np.array(reward_batch), np.array(next_state_batch), np.array(done_batch)
     
     def __len__(self):
         return len(self.buffer)
