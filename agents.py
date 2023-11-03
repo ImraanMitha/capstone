@@ -8,7 +8,7 @@ from utils import *
 
 # agent consists of four networks, critic/actor and main/target
 class DDPGagent:
-    def __init__(self, env, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.8, tau=1e-2, noise_std = 0.05*np.pi, replay_buffer_size=50000):
+    def __init__(self, env, hidden_size=512, actor_learning_rate=1e-4, critic_learning_rate=1e-4, gamma=0.5, tau=1e-1, noise_std = 0.1*np.pi, replay_buffer_size=50000):
         # Params
         self.num_actions = len(env.configuration)
         self.num_states = len(env.state)
@@ -38,14 +38,16 @@ class DDPGagent:
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_learning_rate)
     
     def get_action(self, state, add_noise = False):
-        state = torch.from_numpy(state).float().unsqueeze(0).requires_grad_() # why requires grad here
+        # state = torch.from_numpy(state).float().unsqueeze(0).requires_grad_() # why requires grad here
+        state = torch.from_numpy(state).float().unsqueeze(0)
         action = self.actor.forward(state)
         action = action.squeeze().detach().numpy()
         if add_noise:
             noise = np.random.normal(0, self.noise_std, action.shape)
             action = action + noise 
 
-        return np.clip(action, -np.pi, np.pi) #TODO: need to clip based on limits of particular joint
+        action = np.clip(action, -np.pi, np.pi)
+        return action
     
     
     def update(self, batch_size):
@@ -67,6 +69,7 @@ class DDPGagent:
         # with this call to critic.forward, does it not extend the computational graph for parameters of critic? we dont want
         # this operation to be included in the critic gradient right?
         policy_loss = -self.critic.forward(states, self.actor.forward(states)).mean()
+
         
         # update networks
         # I think if my above assumption is true then after policy_loss.backwards and optim.step the critic parameters should change

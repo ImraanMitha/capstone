@@ -19,10 +19,8 @@ class ReplayBuffer:
         done_batch = []
 
         batch = random.sample(self.buffer, batch_size)
-        print(f'in buffer.sample: {type(batch)}')
 
         for experience in batch:
-            print(type(experience))
             state, action, reward, next_state, done = experience
             state_batch.append(state)
             action_batch.append(action)

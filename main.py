@@ -6,13 +6,18 @@ from manipuator_environment import *
 
 # hyperparamers
 num_epochs = 50
-batch_size = 128
-policy_lr=1e-6
-critic_lr=1e-6
+batch_size = 256
+policy_lr=1e-4
+critic_lr=1e-4
+gamma=0.5
+tau=1e-1
+noise_std = 0.1*np.pi
+replay_buffer_size=50000
+hidden_units = 256
 
 # inits
 env = Planar_Environment()
-agent = DDPGagent(env, actor_learning_rate=policy_lr, critic_learning_rate=critic_lr)
+agent = DDPGagent(env, hidden_size=hidden_units, actor_learning_rate=policy_lr, critic_learning_rate=critic_lr, gamma=gamma, tau=tau, noise_std=noise_std, replay_buffer_size=replay_buffer_size)
 rewards = []
 avg_rewards = []
 

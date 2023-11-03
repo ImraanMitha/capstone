@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
+import numpy as np
 # import torch.autograd
 
 # TODO: right now these networks are 2 hidden layers with the same dimensions, this should be changed later
@@ -26,7 +27,6 @@ class Critic(nn.Module):
         return x
 
 
-# TODO: why does policy network have the lr passed and critic doesnt, dont think it needs to be here
 # policy networks
 class Actor(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
@@ -41,6 +41,6 @@ class Actor(nn.Module):
         """
         x = F.relu(self.linear1(state))
         x = F.relu(self.linear2(x))
-        x = torch.tanh(self.linear3(x))
+        x = np.pi * torch.tanh(self.linear3(x))
 
         return x
