@@ -13,7 +13,7 @@ class Planar_Environment(object):
 
         self.start_pos = start_pos
         self.threshold = threshold # minimum distance from end point to goal to be considered done
-        self.working_radius = sum(joint[1] for joint in self.configuration)
+        self.working_radius = sum(joint[1] for joint in self.configuration) # only works for planar r manipulators
         self.state = self.reset() # state is 1x4 vector whose first two elements represent end point of manipulator and last two represent pos of goal
 
     # generates a coordinate in manipulators working space

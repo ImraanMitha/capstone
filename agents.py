@@ -34,25 +34,34 @@ class DDPGagent:
         # Training
         self.replay_buffer = ReplayBuffer(replay_buffer_size)        
         self.critic_criterion  = nn.MSELoss()
-        self.actor_optimizer  = optim.Adam(self.actor.parameters(), lr=actor_learning_rate)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_learning_rate)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_learning_rate)
     
     def get_action(self, state, add_noise = False):
+        #TODO: does actor need to be no_grad here?
+
+        self.actor.eval()
         # state = torch.from_numpy(state).float().unsqueeze(0).requires_grad_() # why requires grad here
         state = torch.from_numpy(state).float().unsqueeze(0)
         action = self.actor.forward(state)
         action = action.squeeze().detach().numpy()
+
+        self.actor.train()
+
+        action_no_noise = np.copy(action) # just for a test I am running delete this later
+
         if add_noise:
             noise = np.random.normal(0, self.noise_std, action.shape)
             action = action + noise 
 
         action = np.clip(action, -np.pi, np.pi)
-        return action
+        return action, action_no_noise
     
     
     def update(self, batch_size):
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn
-        # also why am I using FloatTensor instead of just tensor?
+
+        # using floattensor to be explicit about datatype when doing conversion from numpys standard float64 to torch 32
         states = torch.FloatTensor(states)
         actions = torch.FloatTensor(actions)
         rewards = torch.FloatTensor(rewards)
@@ -66,14 +75,10 @@ class DDPGagent:
         critic_loss = self.critic_criterion(Qvals, Qprime)
 
         # Actor loss
-        # with this call to critic.forward, does it not extend the computational graph for parameters of critic? we dont want
-        # this operation to be included in the critic gradient right?
         policy_loss = -self.critic.forward(states, self.actor.forward(states)).mean()
 
         
         # update networks
-        # I think if my above assumption is true then after policy_loss.backwards and optim.step the critic parameters should change
-        #TODO: So I could check the values before and after and see
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
