@@ -54,7 +54,7 @@ class DDPGagent:
             noise = np.random.normal(0, self.noise_std, action.shape)
             action = action + noise 
 
-        action = np.clip(action, -np.pi, np.pi)
+        action = np.clip(action, -0.5, 0.5)
         return action, action_no_noise
     
     

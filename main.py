@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from agents import *
 from utils import *
-from manipuator_environment import *
+from manipulator_environment import *
 
 # hyperparamers
 num_epochs = 50
@@ -55,35 +55,38 @@ for episode in range(num_epochs):
             break
 
 
-    # block of code to visualize the value of the action without noise and the reward (- distance to goal) throughout the epoch, as well as the per episode average reward (average - distance to goal)
     rewards.append(episode_reward / num_steps)
     avg_rewards.append(np.mean(rewards[-10:]))
-
-    action_history = np.array(action_history)
-    reward_history = np.array(reward_history)
-    fig, axs = plt.subplots(3, 1, figsize=(20,9))
-
-    axs[0].plot(action_history[:, 0], label='action[0]')
-    axs[0].plot(action_history[:, 1], label='action[1]')
-    axs[0].plot(np.pi*np.ones_like(action_history[:, 0]), color='red', linewidth = 0.5)
-    axs[0].plot(-np.pi*np.ones_like(action_history[:, 0]), color='red', linewidth = 0.5)
     
-    axs[1].plot(reward_history)
+    # block of code to visualize the value of the action without noise and the reward (- distance to goal) throughout the epoch, as well as the per episode average reward (average - distance to goal)
+    # action_history = np.array(action_history)
+    # reward_history = np.array(reward_history)
+    # fig, axs = plt.subplots(3, 1, figsize=(20,9))
 
-    axs[2].plot(rewards)
+    # axs[0].plot(action_history[:, 0], label='action[0]')
+    # axs[0].plot(action_history[:, 1], label='action[1]')
+    # axs[0].plot(0.5*np.ones_like(action_history[:, 0]), color='red', linewidth = 0.5)
+    # axs[0].plot(-0.5*np.ones_like(action_history[:, 0]), color='red', linewidth = 0.5)
     
-    axs[0].legend()
+    # axs[1].plot(reward_history)
 
-    axs[0].set_title("no noise actions")
-    axs[1].set_title("reward")
-    axs[2].set_title("episode avg rewards")
-    fig.canvas.manager.set_window_title(f'episode {episode}')
-    plt.show()  
+    # axs[2].plot(rewards)
+    
+    # axs[0].legend()
+
+    # axs[0].set_title("no noise actions")
+    # axs[1].set_title("reward")
+    # axs[2].set_title("episode avg rewards")
+    # fig.canvas.manager.set_window_title(f'episode {episode}')
+    # for ax in axs:
+    #     ax.grid(True)
+    # plt.show()  
+
 
 
 plt.plot(rewards, label="Episode avg reward")
 plt.plot(avg_rewards, label="10 Episode sliding average")
 plt.legend()
 plt.xlabel('Episode')
-plt.ylabel('Reward')
+plt.ylabel('Average Reward')
 plt.show()
