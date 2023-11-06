@@ -53,6 +53,6 @@ class Actor(nn.Module):
         x = self.bn1(x)
         x = F.relu(self.linear2(x))
         x = self.bn2(x)
-        x = 0.5*torch.tanh(self.linear3(x))
+        x = 0.1*torch.tanh(self.linear3(x))
 
         return x

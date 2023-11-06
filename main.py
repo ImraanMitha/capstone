@@ -5,15 +5,15 @@ from utils import *
 from manipulator_environment import *
 
 # hyperparamers
-num_epochs = 50
-batch_size = 256
+num_epochs = 100
+batch_size = 512
 policy_lr=1e-6
-critic_lr=1e-5
+critic_lr=1e-6
 gamma=0.5
 tau=1e-2
-noise_std = 0.01*np.pi
-replay_buffer_size=50000
-hidden_units = 256
+noise_std = 0.005*np.pi
+replay_buffer_size=100000
+hidden_units = 512
 num_steps = 500 # number of steps per episode
 
 # inits
@@ -25,20 +25,26 @@ avg_rewards = []
 
 # TODO: I think in order for the batch norming to work I need to set the model to eval and only set it to train when I am in agent.update?
 for episode in range(num_epochs):
-    if episode % 10 == 0:
+    print(episode)
+    if (episode+1) % 10 == 0:
         print(f"Episode: {episode}")
 
     state = env.reset()
+    # env.viz_arm()
     episode_reward = 0
 
     action_history = []
     reward_history = []
 
-    for step in range(num_steps):
-        action, no_noise = agent.get_action(state, add_noise=True)
-        new_state, reward, done = env.step(action)
+    # agent.policy_loss_history = []
+    # agent.critic_loss_history = []
 
-        action_history.append(no_noise)
+    for step in range(num_steps):
+        action, action_no_noise = agent.get_action(state, step, add_noise="G")
+        new_state, reward, done = env.step(action)
+        # env.viz_arm()
+
+        action_history.append(action_no_noise)
         reward_history.append(reward)
 
         agent.replay_buffer.push(state, action, reward, new_state, done)
@@ -55,8 +61,26 @@ for episode in range(num_epochs):
             break
 
 
+
     rewards.append(episode_reward / num_steps)
     avg_rewards.append(np.mean(rewards[-10:]))
+
+    if episode >=10:
+        # code to visualize the actor/critic losses throughout the episode as well as the episodes reward
+        _, axs = plt.subplots(3,1, figsize=(10, 9))
+        axs[0].plot(agent.policy_loss_history, label="policy loss")
+        axs[0].grid(True)
+        axs[0].set_title("Policy loss")
+
+        axs[1].plot(agent.critic_loss_history, label="critic loss")
+        axs[1].grid(True)
+        axs[1].set_title("critic loss")
+
+        axs[2].plot(rewards)
+        axs[2].grid(True)
+        axs[2].set_title("episode avg rewards")
+        plt.show()
+
     
     # block of code to visualize the value of the action without noise and the reward (- distance to goal) throughout the epoch, as well as the per episode average reward (average - distance to goal)
     # action_history = np.array(action_history)

@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 class Planar_Environment(object):
     
-    def __init__(self, num_joints=2,configuration=[('R', 10), ('R', 10)], start_angles = [0, 0], threshold = 1e-3):
+    def __init__(self, num_joints=2,configuration=[('R', 10), ('R', 10)], start_angles = [0, 0], threshold = 1e-2):
         self.num_joints = num_joints # dont actually need this, can just use len(configuration)
         self.configuration = configuration
 
@@ -30,6 +30,7 @@ class Planar_Environment(object):
     def reset(self):
         new_goal = self.gen_goal()
         self.state = np.array(self.start_angles + new_goal)
+        self.step([0, 0]) # step with 0 change so joint_end_points is populated, alternatively could run through for loop here too
         return np.copy(self.state) # TODO: need to figure this out, if should be returning copy or reference
         # return self.state
     
@@ -41,14 +42,13 @@ class Planar_Environment(object):
         #### calculate end point, ie fwd kinematics, this implementation is only for planar RR joints ####
         # assuming action is desired angle in radian in [-pi, pi]
 
-        
         end_point = [0, 0]
         self.joint_end_points = [end_point.copy()] # for visualizing arm in space
         cur_angle = 0
         for i, joint in enumerate(self.configuration):
             
             self.state[i] += action[i] # joint angle steps to previous angle plus delta commanded by action
-
+            self.state[i] = (self.state[i]+np.pi) % (2*np.pi) - np.pi # converts joint angle to equivalent in range [-pi, pi]
             if joint[0] == 'R':
                 cur_angle += self.state[i]
                 end_point[0] += joint[1]*np.cos(cur_angle)
@@ -83,5 +83,6 @@ class Planar_Environment(object):
         axes.set_aspect(1)
         axes.add_artist(circle)
         plt.plot(x_coors, y_coors, marker='o', linestyle='-')
+        plt.scatter(self.state[2], self.state[3], marker = 'o', color='green')
         plt.grid(True)
         plt.show() 

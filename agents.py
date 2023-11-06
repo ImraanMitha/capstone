@@ -14,7 +14,8 @@ class DDPGagent:
         self.num_states = len(env.state)
         self.gamma = gamma
         self.tau = tau
-        self.noise_std = noise_std
+        self.gaussian_noise_std = noise_std
+        self.ou_noise = OUNoise(self.num_actions)
 
         # Networks
         self.actor = Actor(self.num_states, hidden_size, self.num_actions)
@@ -36,8 +37,15 @@ class DDPGagent:
         self.critic_criterion  = nn.MSELoss()
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_learning_rate)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_learning_rate)
-    
-    def get_action(self, state, add_noise = False):
+        # self.actor_optimizer = optim.SGD(self.actor.parameters(), lr=actor_learning_rate)
+        # self.critic_optimizer = optim.SGD(self.critic.parameters(), lr=critic_learning_rate)
+
+
+        self.policy_loss_history = [] # track policy loss, can delete later
+        self.critic_loss_history = [] # track critic loss, can delete later
+
+
+    def get_action(self, state, step, add_noise = None):
         #TODO: does actor need to be no_grad here?
 
         self.actor.eval()
@@ -50,18 +58,21 @@ class DDPGagent:
 
         action_no_noise = np.copy(action) # just for a test I am running delete this later
 
-        if add_noise:
-            noise = np.random.normal(0, self.noise_std, action.shape)
+        if add_noise == 'G':
+            noise = np.random.normal(0, self.gaussian_noise_std, action.shape)
             action = action + noise 
+        elif add_noise == "OU":
+            action = self.ou_noise.add_noise(action, step)
 
-        action = np.clip(action, -0.5, 0.5)
+    
+        action = np.clip(action, -0.1, 0.1)
         return action, action_no_noise
     
     
     def update(self, batch_size):
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn. this will be used as (1-done) in yi but I dont get any done=True so far so it doesnt really matter yet
 
-        # using floattensor to be explicit about datatype when doing conversion from numpys standard float64 to torch 32
+        # using floattensor to be explicit about datatype when doing conversion from numpys standard float64 to torch float32
         states = torch.FloatTensor(states)
         actions = torch.FloatTensor(actions)
         rewards = torch.FloatTensor(rewards)
@@ -70,14 +81,21 @@ class DDPGagent:
         # Critic loss        
         Qvals = self.critic.forward(states, actions)
         next_actions = self.actor_target.forward(next_states)
-        next_Q = self.critic_target.forward(next_states, next_actions.detach())
-        Qprime = rewards + self.gamma * next_Q # yi in paper I thik 
+        # next_Q = self.critic_target.forward(next_states, next_actions.detach()) # why detach here?
+        next_Q = self.critic_target.forward(next_states, next_actions)
+        Qprime = rewards + self.gamma * next_Q # yi in paper
         critic_loss = self.critic_criterion(Qvals, Qprime)
 
         # Actor loss
-        policy_loss = -self.critic.forward(states, self.actor.forward(states)).mean()
+        policy_loss = -self.critic.forward(states, self.actor.forward(states))
+        policy_loss = policy_loss.mean()
 
-        
+
+        # for visualizing loss history
+        self.critic_loss_history.append(critic_loss.detach().numpy())
+        self.policy_loss_history.append(policy_loss.detach().numpy())
+
+    
         # update networks
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
