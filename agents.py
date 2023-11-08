@@ -10,24 +10,30 @@ from utils import *
 # agent consists of four networks, critic/actor and main/target
 #TODO: implement loading networks
 class DDPGagent:
-    def __init__(self, env, device, hypers):
+    def __init__(self, action_bound, num_actions, num_states, device, hypers):
         # Params
         self.hypers = hypers
-        self.num_actions = len(env.configuration)
-        self.num_states = len(env.state)
         self.gamma = hypers["gamma"]
         self.tau = hypers["tau"]
         self.action_noise = hypers["action_noise"]
         self.gaussian_noise_std = hypers["g_noise_std"]
+      
+        self.num_actions = num_actions
+        self.num_states = num_states
+        
         self.ou_noise = OUNoise(self.num_actions)
+
         self.device = device
+
+        self.action_bound = action_bound
 
         # Networks
         hidden_size = hypers["hidden_units"]
-        self.actor = Actor(self.num_states, hidden_size, self.num_actions).to(self.device)
-        self.actor_target = Actor(self.num_states, hidden_size, self.num_actions).to(self.device)
-        self.critic = Critic(self.num_states + self.num_actions, hidden_size, 1).to(self.device)
-        self.critic_target = Critic(self.num_states + self.num_actions, hidden_size, 1).to(self.device)
+        self.actor = Actor(self.num_states,  self.num_actions, hidden_size, self.action_bound).to(self.device)
+        self.actor_target = Actor(self.num_states, self.num_actions, hidden_size, self.action_bound).to(self.device)
+
+        self.critic = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
+        self.critic_target = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
 
         # copy target networks state dicts
         self.critic_target.load_state_dict(self.critic.state_dict())
@@ -40,17 +46,19 @@ class DDPGagent:
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=hypers["critic_lr"])
 
         # Loss histories
-        self.policy_loss_history = [] # track policy loss, can delete later
-        self.critic_loss_history = [] # track critic loss, can delete later
+        self.policy_loss_history = [] # track policy loss
+        self.critic_loss_history = [] # track critic loss
 
-
+    '''
+    Gets an action from the policy given the state, adds action noise if desired
+    '''
     def get_action(self, state, step):
-        #TODO: does actor need to be no_grad here?
-        self.actor.eval()
+        self.actor.eval() # placed in eval mode for this step since network involves bn layers
 
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
         action = self.actor(state)
-        action = action.cpu().squeeze().detach().numpy()
+        # action = action.cpu().squeeze().detach().numpy()
+        action = action.cpu().data.numpy().flatten()
 
         self.actor.train()
 
@@ -62,12 +70,14 @@ class DDPGagent:
         elif self.action_noise == "OU": #not well implemented, sigmas are way too big
             action = self.ou_noise.add_noise(action, step)
 
-        action = np.clip(action, -0.1, 0.1) #TODO: make the action bounds class variables for agent, used here, in actor network definition, and in plotting in main to viz actions
+        action = np.clip(action, -self.action_bound, self.action_bound)
         return action, action_no_noise
-    
-    
+
+    '''
+    updates the networks using batches sampled from the replay buffer. Based on standard ddpg theory
+    '''
     def update(self, batch_size):
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn. this will be used as (1-done) in yi but I dont get any done=True so far so it doesnt really matter yet
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn. this will be used as (1-done) in target_Q but I dont get any done=True so far so it doesnt really matter yet
             
         # using floattensor to be explicit about datatype when doing conversion from numpys standard float64 to torch float32
         states = torch.FloatTensor(states).to(self.device)
@@ -104,7 +114,6 @@ class DDPGagent:
         self.critic_loss_history.append(critic_loss.cpu().detach().numpy())
         self.policy_loss_history.append(policy_loss.cpu().detach().numpy())
 
-    
         # update target networks 
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
@@ -113,7 +122,7 @@ class DDPGagent:
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
 
     '''
-    saves all 4 models under ./models/ directory in increminting subdirectories
+    saves all 4 models, plot png, and loss arrays under ./models/ directory in increminting subdirectories each run
     '''
     def save(self, models_path, rewards, avg_rewards, fig):
         zero_fill = 4
@@ -147,8 +156,6 @@ class DDPGagent:
         np.save(os.path.join(next_dir_path, "avg_rewards.npy"), np.array(avg_rewards))
 
         # save plots png
-        fig.savefig(os.path.join(next_dir_path, "plots.png"))
-
-        #TODO: should save loss and reward history as maybe .npy too so we can load and continue those plots if we want
+        fig.savefig(os.path.join(next_dir_path, f"plots{next_subdir}.png"))
 
 

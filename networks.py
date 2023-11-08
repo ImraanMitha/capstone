@@ -9,19 +9,16 @@ import numpy as np
 
 # Q value estimator networks
 class Critic(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, state_dim, action_dim, hidden_size):
         super(Critic, self).__init__()
-        self.bn0 = nn.BatchNorm1d(input_size)
-        self.linear1 = nn.Linear(input_size, hidden_size)
+        self.bn0 = nn.BatchNorm1d(state_dim + action_dim)
+        self.linear1 = nn.Linear(state_dim + action_dim, hidden_size)
         self.bn1 = nn.BatchNorm1d(hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.linear3 = nn.Linear(hidden_size, output_size)
+        self.linear3 = nn.Linear(hidden_size, 1)
 
     def forward(self, state, action):
-        """
-        Expects state and action as torch tensors
-        """
         x = torch.cat([state, action], 1)
         x = self.bn0(x)
         x = F.relu(self.linear1(x))
@@ -35,24 +32,22 @@ class Critic(nn.Module):
 
 # policy networks
 class Actor(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, state_dim, action_dim, hidden_size, action_bound):
         super(Actor, self).__init__()
-        self.bn0 = nn.BatchNorm1d(input_size)
-        self.linear1 = nn.Linear(input_size, hidden_size)
+        self.action_bound = action_bound
+        self.bn0 = nn.BatchNorm1d(state_dim)
+        self.linear1 = nn.Linear(state_dim, hidden_size)
         self.bn1 = nn.BatchNorm1d(hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.linear3 = nn.Linear(hidden_size, output_size)
+        self.linear3 = nn.Linear(hidden_size, action_dim)
         
     def forward(self, state):
-        """
-        Expects state and action as torch tensors
-        """
         x = self.bn0(state)
         x = F.relu(self.linear1(x))
         x = self.bn1(x)
         x = F.relu(self.linear2(x))
         x = self.bn2(x)
-        x = 0.1*torch.tanh(self.linear3(x))
+        x = self.action_bound*torch.tanh(self.linear3(x))
 
         return x

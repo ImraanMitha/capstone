@@ -4,14 +4,15 @@ from agents import *
 from utils import *
 from manipulator_environment import *
 import time
+import gym
 
-def train_loop(models_path=None):
+def train_loop(models_path=None, save=True):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # hyperparamers
-    hypers = {"num_epochs": 500,
+    hypers = {"num_epochs": 100,
                     "batch_size": 1024,
-                    "policy_lr": 1e-3,
+                    "policy_lr": 1e-2,
                     "critic_lr": 1e-4,
                     "gamma": 0.7,
                     "tau": 0.005,
@@ -22,20 +23,29 @@ def train_loop(models_path=None):
                     "num_steps": 1000
                     }
 
-    # inits
+    # environment setup
     env = Planar_Environment()
-    agent = DDPGagent(env, device, hypers)
+    num_actions = env.action_dim
+    num_states = env.state_dim
+    action_bound = env.action_bound
+
+    # env = gym.make("Pendulum-v1")
+    # num_actions = env.action_space.shape[0]
+    # num_states = env.observation_space.shape[0]
+    # action_bound = env.action_space.high
+
+
+    agent = DDPGagent(action_bound, num_actions, num_states, device, hypers)
     rewards = []
     avg_rewards = []
 
     start_time = time.time()
     print(f'Beginning training on {device}')
-    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["hidden_units"]} hidden units')
+    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise, {hypers["hidden_units"]} hidden units')
 
     for episode in range(hypers["num_epochs"]):
         epoch_start_time = time.time()
-        state = env.reset()
-        # env.viz_arm()
+        state, _ = env.reset()
         episode_reward = 0
 
         action_history = []
@@ -43,8 +53,7 @@ def train_loop(models_path=None):
 
         for step in range(hypers["num_steps"]):
             action, action_no_noise = agent.get_action(state, step)
-            new_state, reward, done = env.step(action)
-            # env.viz_arm()
+            new_state, reward, done, _, _ = env.step(action)
 
             action_history.append(action_no_noise)
             reward_history.append(reward)
@@ -105,14 +114,15 @@ def train_loop(models_path=None):
     axs[2].grid(True)
     axs[2].legend()
     axs[2].set_title("episode avg rewards")
-    fig.suptitle(f'{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["hidden_units"]} hidden units')
-    
-    if models_path is not None:
-        agent.save(models_path, rewards, avg_rewards, fig)
-    else:
-        print("Cant save models, no path provided")
+    fig.suptitle(f'{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise, {hypers["hidden_units"]} hidden units')
+
+    if save:    
+        if models_path is not None:
+            agent.save(models_path, rewards, avg_rewards, fig)
+        else:
+            print("Cant save models, no path provided")
 
     plt.show()
 
 if __name__ == "__main__":
-    train_loop("models")
+    train_loop(models_path="models", save=True)

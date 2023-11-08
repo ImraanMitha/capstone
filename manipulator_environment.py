@@ -1,26 +1,38 @@
-# this class needs to take in an action and return the state. it should eventually be flexible to arms of different shapes and joints
-
-# the state should just be the end effector position and the goal position right?
-# maybe at some later point I will change actions to be torques instead of angles to go to, in which case I would need to add velocity information to state
-# TODO: should implement a render function to demo the movement control
 import numpy as np
 from matplotlib import pyplot as plt
 
+
+
+'''
+Environement for planar n-rotary joint robotic arm
+'''
 class Planar_Environment(object):
     
-    def __init__(self, num_joints=2,configuration=[('R', 10), ('R', 10)], start_angles = [0, 0], threshold = 1e-2):
-        self.num_joints = num_joints # dont actually need this, can just use len(configuration)
+    def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-2):
+        self.action_bound = action_bound
         self.configuration = configuration
+        self.num_joints =len(configuration) # dont actually need this, but I like having it
 
-        self.start_angles = start_angles # starting angles of the joints, could add a check here to make sure len is the same as config
+        # Sets starting angle of the joints
+        if start_angles is None:
+            self.start_angles = [0] * self.num_joints
+        elif len(start_angles) != self.num_joints:
+            raise Exception("provided start angles do not match number of joints")
+        else:
+            self.start_angles = start_angles
+
         self.threshold = threshold # minimum distance from end point to goal to be considered done
 
-        self.joint_end_points = []
+        self.joint_end_points = [] # list of tuples representing the end points of each joint in the arm
         self.working_radius = sum(joint[1] for joint in self.configuration) # only works for planar r manipulators
-        self.state = self.reset() # state is 1x4 vector whose first two elements represent angles of joints and last two represent pos of goal
-
-    # generates a coordinate in manipulators working space
-    # right now this only works for planar RR manipulator 
+        self.state, _ = self.reset() # state is 1x{num_joints}+2 vector whose first {num_joints} elements represent angles of joints and last two represent pos of goal
+        
+        # redundant here but more clear when calling from outside the class
+        self.action_dim = self.num_joints
+        self.state_dim = len(self.state)
+    '''
+    Generates a coordinate in manipulators working space
+    '''
     def gen_goal(self):
         rand_rad = np.random.uniform(0, self.working_radius)
         rand_ang = np.random.uniform(-np.pi, np.pi)
@@ -28,25 +40,23 @@ class Planar_Environment(object):
 
     # resets arm to start position, generates a new goal and returns them combined as the state vector
     def reset(self):
-        new_goal = self.gen_goal()
+        new_goal = self.gen_goal() # 2d point (planar goal)
         self.state = np.array(self.start_angles + new_goal)
-        self.step([0, 0]) # step with 0 change so joint_end_points is populated, alternatively could run through for loop here too
-        return np.copy(self.state) # TODO: need to figure this out, if should be returning copy or reference
-        # return self.state
+        self.step([0] * self.num_joints) # step with 0 change so joint_end_points is populated, alternatively could run through for loop here too
+        return np.copy(self.state), {} # returns the dict to match returns from gym .reset()
     
+    '''
+    Steps the manipulator by the action provided. Action is expected to be delta_joint_angle in radians
+    '''
     def step(self, action):
         if len(action) != self.num_joints:
             print("Error: action sent to environment does not match the number of joints")
             return None # in this condition should maybe exit instead 
-        
-        #### calculate end point, ie fwd kinematics, this implementation is only for planar RR joints ####
-        # assuming action is desired angle in radian in [-pi, pi]
 
         end_point = [0, 0]
         self.joint_end_points = [end_point.copy()] # for visualizing arm in space
         cur_angle = 0
         for i, joint in enumerate(self.configuration):
-            
             self.state[i] += action[i] # joint angle steps to previous angle plus delta commanded by action
             self.state[i] = (self.state[i]+np.pi) % (2*np.pi) - np.pi # converts joint angle to equivalent in range [-pi, pi]
             if joint[0] == 'R':
@@ -67,9 +77,8 @@ class Planar_Environment(object):
 
         done = -reward <= self.threshold # episode is done if distance from end point to goal is less than threshold
 
-        return np.copy(self.state), reward, done # TODO: need to figure this out, if should be returning copy or reference
-        # return self.state, reward, done
-        
+        return np.copy(self.state), reward, done, False, {} # last two returns are just to match gym .step()
+    
     '''
     Plots the joints with the workspace outline
     '''
