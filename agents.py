@@ -84,11 +84,13 @@ class DDPGagent:
         actions = torch.FloatTensor(actions).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
         next_states = torch.FloatTensor(next_states).to(self.device)
+
+        dones = torch.FloatTensor(dones.reshape(-1, 1)).to(self.device) # should just have this convert dones directly and in target_Q do (1-done) 
     
         ### Critic loss ###
         # target Q values (based on target network)
         target_Q = self.critic_target(next_states, self.actor_target(next_states))
-        target_Q = rewards + (self.gamma * target_Q).detach() # still not fully sure why detach here
+        target_Q = rewards + ((1-dones) * self.gamma * target_Q).detach() # still not fully sure why detach here
 
         # current Q estimate based on Q network
         current_Q = self.critic(states, actions)

@@ -9,7 +9,7 @@ Environement for planar n-rotary joint robotic arm
 class Planar_Environment(object):
     
     def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-2):
-        self.action_bound = action_bound
+        self.action_bound = np.array([action_bound])
         self.configuration = configuration
         self.num_joints =len(configuration) # dont actually need this, but I like having it
 

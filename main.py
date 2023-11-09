@@ -6,22 +6,9 @@ from manipulator_environment import *
 import time
 import gym
 
-def train_loop(models_path=None, save=True):
+def train_loop(hypers, models_path=None, save=True):
+    
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # hyperparamers
-    hypers = {"num_epochs": 100,
-                    "batch_size": 1024,
-                    "policy_lr": 1e-2,
-                    "critic_lr": 1e-4,
-                    "gamma": 0.7,
-                    "tau": 0.005,
-                    "action_noise": None,
-                    "g_noise_std": 0.005*np.pi,
-                    "replay_buffer_size": int(1e6),
-                    "hidden_units": 512,
-                    "num_steps": 1000
-                    }
 
     # environment setup
     env = Planar_Environment()
@@ -41,7 +28,7 @@ def train_loop(models_path=None, save=True):
 
     start_time = time.time()
     print(f'Beginning training on {device}')
-    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise, {hypers["hidden_units"]} hidden units')
+    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise')
 
     for episode in range(hypers["num_epochs"]):
         epoch_start_time = time.time()
@@ -60,8 +47,8 @@ def train_loop(models_path=None, save=True):
 
             agent.replay_buffer.push(state, action, reward, new_state, done)
             
-            if len(agent.replay_buffer) > hypers["batch_size"]:
-                agent.update(hypers["batch_size"])
+            # if len(agent.replay_buffer) > hypers["batch_size"]:
+            #     agent.update(hypers["batch_size"])
                     
             state = new_state
 
@@ -74,6 +61,9 @@ def train_loop(models_path=None, save=True):
 
         rewards.append(episode_reward / hypers["num_steps"])
         avg_rewards.append(np.mean(rewards[-10:]))
+        
+        for i in range(200):
+            agent.update(hypers["batch_size"])
 
         print(f'Episode {episode}, average reward: {round(rewards[-1], 3)}, in {round(time.time()-epoch_start_time, 3)} s')
 
@@ -96,8 +86,9 @@ def train_loop(models_path=None, save=True):
         #     ax.grid(True)
         # plt.show()  
 
-
-    print(f'\nTotal time for {hypers["num_epochs"]} epochs: {round(time.time()-start_time, 3)}')
+    total_time = time.time()-start_time
+    (hours, minutes), seconds  = divmod(divmod(total_time, 60)[0], 60), (divmod(total_time, 60)[1])
+    print(f'\nTotal time for {hypers["num_epochs"]} epochs: {int(hours)}h {int(minutes)}m {round(seconds, 2)}s')
 
     # code to visualize the actor/critic losses throughout the episode as well as the episodes reward
     fig, axs = plt.subplots(3, 1, figsize=(10, 9))
@@ -114,7 +105,7 @@ def train_loop(models_path=None, save=True):
     axs[2].grid(True)
     axs[2].legend()
     axs[2].set_title("episode avg rewards")
-    fig.suptitle(f'{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise, {hypers["hidden_units"]} hidden units')
+    fig.suptitle(f'{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise')
 
     if save:    
         if models_path is not None:
@@ -125,4 +116,18 @@ def train_loop(models_path=None, save=True):
     plt.show()
 
 if __name__ == "__main__":
-    train_loop(models_path="models", save=True)
+
+    hypers = {"num_epochs": 10,
+                    "batch_size": 100,
+                    "policy_lr": 0.01,
+                    "critic_lr": 0.001,
+                    "gamma": 0.99,
+                    "tau": 0.005,
+                    "action_noise": None,
+                    "g_noise_std": 0.1,
+                    "replay_buffer_size": int(1e6),
+                    "hidden_units": 512, # not currently used
+                    "num_steps": 1000
+                    }
+    
+    train_loop(hypers, models_path="models", save=False)
