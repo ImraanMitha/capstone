@@ -96,8 +96,8 @@ class DDPGagent:
         current_Q = self.critic(states, actions)
 
         # critic loss (MSE)
-        # critic_loss = self.critic_criterion(current_Q, target_Q)
-        critic_loss = nn.functional.mse_loss(current_Q, target_Q)
+        critic_loss = self.critic_criterion(current_Q, target_Q)
+        # critic_loss = nn.functional.mse_loss(current_Q, target_Q)
 
         # optimize critic
         self.critic_optimizer.zero_grad()
