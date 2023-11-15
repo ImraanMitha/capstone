@@ -8,7 +8,7 @@ class ReplayBuffer:
         self.buffer = deque(maxlen=buf_size)
 
     def push(self, state, action, reward, next_state, done):
-        experience = (state, action, np.array([reward]), next_state, done) # why reward into an np array?
+        experience = (state, action, np.array([reward]), next_state, done)
         self.buffer.append(experience)    
 
     def sample(self, batch_size):

@@ -35,6 +35,16 @@ class DDPGagent:
         self.critic = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
         self.critic_target = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
 
+        for layer in self.actor.children():
+            nn.init.uniform_(layer.weight, -0.01, 0.01)
+            nn.init.zeros_(layer.bias)
+
+        ####### test of weight initialization #######
+        # for layer in self.critic.children():
+        #     nn.init.uniform_(layer.weight, -0.01, 0.01)
+        #     nn.init.zeros_(layer.bias)
+        #############################################
+
         # copy target networks state dicts
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.actor_target.load_state_dict(self.actor.state_dict())
@@ -77,7 +87,7 @@ class DDPGagent:
     updates the networks using batches sampled from the replay buffer. Based on standard ddpg theory
     '''
     def update(self, batch_size):
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size) #dont use done batch rn. this will be used as (1-done) in target_Q but I dont get any done=True so far so it doesnt really matter yet
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size)
             
         # using floattensor to be explicit about datatype when doing conversion from numpys standard float64 to torch float32
         states = torch.FloatTensor(states).to(self.device)

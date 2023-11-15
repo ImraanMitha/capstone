@@ -6,14 +6,14 @@ class Planar_Environment(object):
     '''
     Environement for planar n-rotary joint robotic arm
     '''
-    def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-2):
+    def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-1):
         self.action_bound = np.array([action_bound])
         self.configuration = configuration
         self.num_joints =len(configuration) # dont actually need this, but I like having it
 
         # Sets starting angle of the joints
         if start_angles is None:
-            self.start_angles = [0] * self.num_joints
+            self.start_angles = [0.] * self.num_joints
         elif len(start_angles) != self.num_joints:
             raise Exception("provided start angles do not match number of joints")
         else:
@@ -28,6 +28,9 @@ class Planar_Environment(object):
         State is 2*{num_joints}+2+2 vector whose first 2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
+
+        self.goal = [10, 10]
+
         self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk
         
         # redundant here but more clear when calling from outside the class
@@ -46,7 +49,9 @@ class Planar_Environment(object):
         '''
         Resets arm to start position, generates a new goal and returns them combined as the state vector
         '''
-        new_goal = self.gen_goal() # 2d point (planar goal)
+        # new_goal = self.gen_goal() # 2d point (planar goal)
+        self.joint_angles = np.copy(np.array(self.start_angles))
+        new_goal = self.goal
         
         # compute end effector position
         end_point = [0, 0]
@@ -85,26 +90,6 @@ class Planar_Environment(object):
             self.joint_end_points.append(end_point.copy())
 
         self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
-
-        # end_point = [0, 0]
-        # self.joint_end_points = [end_point.copy()] # for visualizing arm in space
-        # cur_angle = 0
-        # for i, joint in enumerate(self.configuration):
-        #     self.state[i] += action[i] # joint angle steps to previous angle plus delta commanded by action
-        #     self.state[i] = (self.state[i]+np.pi) % (2*np.pi) - np.pi # converts joint angle to equivalent in range [-pi, pi]
-        #     if joint[0] == 'R':
-        #         cur_angle += self.state[i]
-        #         end_point[0] += joint[1]*np.cos(cur_angle)
-        #         end_point[1] += joint[1]*np.sin(cur_angle)
-        #         self.joint_end_points.append(end_point.copy())
-
-        #     elif joint[0] == 'P':
-        #         print("havent implemented prismatic yet")
-        #         return None # in this condition should maybe exit instead 
-            
-        #     else:
-        #         print('messed up configuration to planar_env object, got a joint type thats not R or P')
-        #         return None # in this condition should maybe exit instead 
 
         reward = -np.linalg.norm(np.array(self.joint_end_points[-1]) - self.state[-2:]) # reward is the negative distance from end point to goal
 

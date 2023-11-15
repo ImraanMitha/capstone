@@ -75,6 +75,27 @@ def step_viz(step, epoch_action_history, epoch_reward_history, action_bound, rew
         return False
     return True
 
+def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_history, action_bound, reward, state, env):
+    plt.ion()
+    for ax in axs:
+        ax.clear()
+
+    axs[0].plot(epoch_action_history[:, 0], label='action[0]')
+    axs[0].plot(epoch_action_history[:, 1], label='action[1]')
+    axs[0].plot(action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
+    axs[0].plot(-action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
+    axs[0].legend()
+    axs[0].grid(True)
+    axs[0].set_title("no noise actions")
+
+    axs[1].plot(epoch_reward_history)
+    axs[1].grid(True)
+    axs[1].set_title("reward")
+
+    env.viz_arm(axs[2])
+    fig.suptitle(f'Episode: {episode}, step:{step}, step_reward: {round(reward, 3)}, goal pos: {[round(value, 3) for value in state[-2:]]}, finger pos: {[round(value, 3) for value in env.joint_end_points[-1]]}')
+    plt.pause(0.001)
+
 def train_loop(hypers, models_path=None, save=True):
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -101,7 +122,9 @@ def train_loop(hypers, models_path=None, save=True):
 
     start_time = time.time()
     print(f'Beginning training on {device}')
-    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise')
+    print(f'\n{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise\n')
+
+    pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,9))
 
     for episode in range(hypers["num_epochs"]):
         epoch_start_time = time.time()
@@ -111,9 +134,6 @@ def train_loop(hypers, models_path=None, save=True):
         epoch_action_history = np.empty((0,2))
         epoch_reward_history = np.empty((0,))
 
-        ####### plot step #######
-        plot_step = False
-        #########################
 
         for step in range(hypers["num_steps"]):
             action, action_no_noise = agent.get_action(state, step)
@@ -135,9 +155,11 @@ def train_loop(hypers, models_path=None, save=True):
             epoch_action_history = np.append(epoch_action_history, np.array([action_no_noise]), axis=0)
             epoch_reward_history = np.append(epoch_reward_history, reward)
 
-            if plot_step:
-                plot_step = step_viz(step, epoch_action_history, epoch_reward_history, action_bound, reward, state, env)
+            # if episode != 0:
+            #     if rewards[-1] > -2:
+            #         plot_epoch(pe_fig, pe_axs, episode, step, epoch_action_history, epoch_reward_history, action_bound, reward, state, env)
             
+            # step_viz(step, epoch_action_history, epoch_reward_history, action_bound, reward, state, env)
     
         rewards.append(episode_reward / hypers["num_steps"])
         avg_rewards.append(np.mean(rewards[-10:]))
@@ -147,15 +169,16 @@ def train_loop(hypers, models_path=None, save=True):
 
         print(f'Episode {episode}, average reward: {round(rewards[-1], 3)}, in {round(time.time()-epoch_start_time, 3)} s')
 
-        # epoch_summary(episode, epoch_action_history, epoch_reward_history, rewards, action_bound)
+        # if episode > 10:
+        #     epoch_summary(episode, epoch_action_history, epoch_reward_history, rewards, action_bound)
 
     # compute and format training time
     total_time = time.time()-start_time
     (hours, minutes), seconds  = divmod(divmod(total_time, 60)[0], 60), (divmod(total_time, 60)[1])
     print(f'\nTotal time for {hypers["num_epochs"]} epochs: {int(hours)}h {int(minutes)}m {round(seconds, 2)}s')
 
-    # save model and additional information if needed
 
+    # save model and additional information if needed
     fig = end_plots(agent, rewards, avg_rewards, hypers)
     if save:    
         if models_path is not None:
@@ -166,17 +189,17 @@ def train_loop(hypers, models_path=None, save=True):
 
 if __name__ == "__main__":
 
-    hypers = {"num_epochs": 100,
-                    "batch_size": 100,
-                    "policy_lr": 0.001,
-                    "critic_lr": 0.01,
-                    "gamma": 0.99,
-                    "tau": 0.005,
-                    "action_noise": None,
-                    "g_noise_std": 0.1,
-                    "replay_buffer_size": int(1e6),
-                    "hidden_units": 512, # not currently used
-                    "num_steps": 1000
-                    }
+    hypers = {"num_epochs": 500,
+                "batch_size": 100,
+                "policy_lr": 1e-6,
+                "critic_lr": 0.01,
+                "gamma": 0.9,
+                "tau": 0.005,
+                "action_noise": "G",
+                "g_noise_std": 0.02,
+                "replay_buffer_size": int(1e6),
+                "hidden_units": 512, # not currently used
+                "num_steps": 1000
+                }
     
-    train_loop(hypers, models_path="models", save=False)
+    train_loop(hypers, models_path="models", save=True)
