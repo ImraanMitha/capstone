@@ -29,7 +29,7 @@ class Planar_Environment(object):
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
 
-        self.goal = [10, 10]
+        # self.goal = [10, 10]
 
         self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk
         
@@ -49,9 +49,9 @@ class Planar_Environment(object):
         '''
         Resets arm to start position, generates a new goal and returns them combined as the state vector
         '''
-        # new_goal = self.gen_goal() # 2d point (planar goal)
+        # new_goal = self.goal
+        new_goal = self.gen_goal() # 2d point (planar goal)
         self.joint_angles = np.copy(np.array(self.start_angles))
-        new_goal = self.goal
         
         # compute end effector position
         end_point = [0, 0]

@@ -34,12 +34,12 @@ class DDPGagent:
 
         self.critic = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
         self.critic_target = Critic(self.num_states, self.num_actions, hidden_size).to(self.device)
-
-        for layer in self.actor.children():
-            nn.init.uniform_(layer.weight, -0.01, 0.01)
-            nn.init.zeros_(layer.bias)
-
+        
         ####### test of weight initialization #######
+        # for layer in self.actor.children():
+        #     nn.init.uniform_(layer.weight, -0.01, 0.01)
+        #     nn.init.zeros_(layer.bias)
+
         # for layer in self.critic.children():
         #     nn.init.uniform_(layer.weight, -0.01, 0.01)
         #     nn.init.zeros_(layer.bias)
@@ -72,7 +72,7 @@ class DDPGagent:
 
         self.actor.train()
 
-        action_no_noise = np.copy(action) # just for a test I am running delete this later
+        action_no_noise = np.copy(action)
 
         if self.action_noise == 'G':
             noise = np.random.normal(0, self.gaussian_noise_std, action.shape)
