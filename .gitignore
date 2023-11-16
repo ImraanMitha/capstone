@@ -4,4 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+*.gdoc
 models/
+scratch.ipynb
+scratch.py
+q_learn_test.ipynb
+run.ipynb
