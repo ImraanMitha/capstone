@@ -136,7 +136,7 @@ class DDPGagent:
     '''
     saves all 4 models, plot png, and loss arrays under ./models/ directory in increminting subdirectories each run
     '''
-    def save(self, models_path, rewards, avg_rewards, fig):
+    def save(self, models_path, rewards, avg_rewards, fig, eval_performance):
         zero_fill = 4
 
         existing_subdirs = [d for d in os.listdir(models_path) if os.path.isdir(os.path.join(models_path, d))]
@@ -158,8 +158,10 @@ class DDPGagent:
         # save parameters to a txt file
         parameter_file = os.path.join(next_dir_path, "parameters.txt")
         with open(parameter_file, 'w') as f:
+            f.write(f'Run {next_subdir}\n\n')
             for key, value in self.hypers.items():
                 f.write(f"{key}:\t{value}\n")
+            f.write(f'\nAverage evaluation reward: {eval_performance}')
         
         # save loss arrays
         np.save(os.path.join(next_dir_path, "policy_loss.npy"), np.array(self.policy_loss_history))

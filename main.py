@@ -96,8 +96,10 @@ def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_histo
     fig.suptitle(f'Episode: {episode}, step:{step}, step_reward: {round(reward, 3)}, goal pos: {[round(value, 3) for value in state[-2:]]}, finger pos: {[round(value, 3) for value in env.joint_end_points[-1]]}')
     plt.pause(0.001)
 
-def eval_run(agent, env, hypers):
-    # pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,9))
+def eval_run(agent, env, hypers, plot=False):
+    if plot:
+        pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,9))
+
     episode_reward = 0 
     epoch_action_history = np.empty((0,2))
     epoch_reward_history = np.empty((0,))
@@ -114,19 +116,20 @@ def eval_run(agent, env, hypers):
         epoch_reward_history = np.append(epoch_reward_history, reward)
 
         if done:
-            # print(f'Completion by step {step}')
             break
 
-        # plot_epoch(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
+        if plot:
+            plot_epoch(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
 
     print(f"Completed: {done}, took {step} steps, average reward: {round(episode_reward/hypers['num_steps'], 3)}, goal was {[round(value, 2) for value in state[-2:]]}")
+    return episode_reward/hypers['num_steps']
 
 def train_loop(hypers, models_path=None, save=True):
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # environment setup
-    env = Planar_Environment()
+    env = Planar_Environment(configuration=hypers['configuration'])
     num_actions = env.action_dim
     num_states = env.state_dim
     action_bound = env.action_bound
@@ -153,7 +156,7 @@ def train_loop(hypers, models_path=None, save=True):
 
     for episode in range(hypers["num_epochs"]):
         epoch_start_time = time.time()
-        state, _ = env.reset()
+        state, _ = env.reset()        
         episode_reward = 0
 
         epoch_action_history = np.empty((0,2))
@@ -171,7 +174,6 @@ def train_loop(hypers, models_path=None, save=True):
             episode_reward += reward
 
             if done:
-                print(f'Completion in episode {episode} by step {step}, with episode average reward: {round(episode_reward / hypers["num_steps"], 3)}')
                 break
             
             epoch_action_history = np.append(epoch_action_history, np.array([action_no_noise]), axis=0)
@@ -184,10 +186,7 @@ def train_loop(hypers, models_path=None, save=True):
         rewards.append(episode_reward / hypers["num_steps"])
         avg_rewards.append(np.mean(rewards[-10:]))
 
-        print(f'Episode {episode}:{f" Completion in {step} steps" if done else "" } average reward: {round(rewards[-1], 3)}, in {round(time.time()-epoch_start_time, 3)}s\tgoal was {[round(value, 2) for value in state[-2:]]}')
-
-        # if episode > 400 and (episode+1) % 10 == 0:
-        #     eval_run(agent, env, hypers)
+        print(f'Episode {episode}: average reward: {round(rewards[-1], 3)}, in {round(time.time()-epoch_start_time, 3)}s\tgoal was {[round(value, 2) for value in state[-2:]]} {f"|Completion in {step} steps|" if done else ""}')
 
         # epoch_summary(episode, epoch_action_history, epoch_reward_history, rewards, action_bound)
 
@@ -198,19 +197,23 @@ def train_loop(hypers, models_path=None, save=True):
 
     # eval runs
     print("\n")
-    for run in range(100):
+    num_evals = 1000
+    eval_reward = 0
+    eval_start_time = time.time()
+    for run in range(num_evals):
         print(f"Eval run {run}: ", end = "")
-        eval_run(agent, env, hypers)
+        eval_reward += eval_run(agent, env, hypers)
 
+    eval_performance = eval_reward / num_evals # average avg dist to goal across evaluation runs
+    print(f'Average reward over {num_evals} eval runs: {eval_performance} in {round(time.time()-eval_start_time, 2)} s')
 
     # save model and additional information if needed
     fig = end_plots(agent, rewards, avg_rewards, hypers)
     if save:    
         if models_path is not None:
-            agent.save(models_path, rewards, avg_rewards, fig)
+            agent.save(models_path, rewards, avg_rewards, fig, eval_performance)
         else:
             print("Cant save models, no path provided")
-
 
 if __name__ == "__main__":
 
@@ -224,7 +227,8 @@ if __name__ == "__main__":
                 "g_noise_std": 0.02,
                 "replay_buffer_size": int(1e6),
                 "hidden_units": 512, # not currently used
-                "num_steps": 500
+                "num_steps": 500,
+                "configuration": [('R', 10), ('R', 10)],
                 }
     
     train_loop(hypers, models_path="models", save=True)

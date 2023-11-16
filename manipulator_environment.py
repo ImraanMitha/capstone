@@ -22,18 +22,16 @@ class Planar_Environment(object):
         self.threshold = threshold # minimum distance from end point to goal to be considered done
 
         self.joint_end_points = [] # list of tuples representing the end points of each joint in the arm
-        self.working_radius = sum(joint[1] for joint in self.configuration) # only works for planar r manipulators
+        self.working_radius = sum(joint[1] for joint in self.configuration) # max reachable radius, only used for plotting
         self.joint_angles = np.array(self.start_angles, dtype=float) # keeping this as an array makes step() easier, maybe everything should just be an ndarray
+        
         '''
         State is 2*{num_joints}+2+2 vector whose first 2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
-
-        # self.goal = [10, 10]
-
         self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk
         
-        # redundant here but more clear when calling from outside the class
+        # redundant here but makes code more clear when calling from outside the class
         self.action_dim = self.num_joints
         self.state_dim = len(self.state)
 
@@ -41,16 +39,23 @@ class Planar_Environment(object):
         '''
         Generates a coordinate in manipulators working space
         '''
-        rand_rad = np.random.uniform(0, self.working_radius)
-        rand_ang = np.random.uniform(-np.pi, np.pi)
-        return [rand_rad * np.cos(rand_ang), rand_rad * np.sin(rand_ang)]
+        rand_angs = np.random.uniform(-np.pi, np.pi, self.num_joints)
+        goal_point  = [0, 0]
+        cur_angle = 0
+        for i, joint in enumerate(self.configuration):
+            cur_angle += rand_angs[i]
+            goal_point[0] += joint[1]*np.cos(cur_angle)
+            goal_point[1] += joint[1]*np.sin(cur_angle)
+
+        return goal_point
 
     def reset(self):
         '''
         Resets arm to start position, generates a new goal and returns them combined as the state vector
         '''
-        # new_goal = self.goal
         new_goal = self.gen_goal() # 2d point (planar goal)
+
+        # self.joint_angles = np.random.uniform(-np.pi, np.pi, self.num_joints)
         self.joint_angles = np.copy(np.array(self.start_angles))
         
         # compute end effector position
