@@ -6,7 +6,7 @@ class Planar_Environment(object):
     '''
     Environement for planar n-rotary joint robotic arm
     '''
-    def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-1):
+    def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-1, step_cost=1/400):
         self.action_bound = np.array([action_bound])
         self.configuration = configuration
         self.num_joints =len(configuration) # dont actually need this, but I like having it
@@ -20,13 +20,14 @@ class Planar_Environment(object):
             self.start_angles = start_angles
 
         self.threshold = threshold # minimum distance from end point to goal to be considered done
+        self.step_cost = step_cost # incremental cost (-reward) per step to incentivize non zero action when close to goal
 
         self.joint_end_points = [] # list of tuples representing the end points of each joint in the arm
         self.working_radius = sum(joint[1] for joint in self.configuration) # max reachable radius, only used for plotting
         self.joint_angles = np.array(self.start_angles, dtype=float) # keeping this as an array makes step() easier, maybe everything should just be an ndarray
         
         '''
-        State is 2*{num_joints}+2+2 vector whose first 2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
+        State is 1+2*{num_joints}+2+2 vector whose first element is the current step, next 2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
         self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk
@@ -69,11 +70,11 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], new_goal))
+        self.state = np.concatenate(([0], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], new_goal))
         
         return np.copy(self.state), {} # returns the dict to match returns from gym .reset()
  
-    def step(self, action):
+    def step(self, action, step):
         '''
         Steps the manipulator by the action provided. Action is expected to be delta_joint_angle in radians
         '''
@@ -94,11 +95,12 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
+        self.state = np.concatenate(([step], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
 
-        reward = -np.linalg.norm(np.array(self.joint_end_points[-1]) - self.state[-2:]) # reward is the negative distance from end point to goal
+        distance_to_goal = np.linalg.norm(np.array(self.joint_end_points[-1]) - self.state[-2:])
+        reward = -distance_to_goal -self.step_cost*step # reward is the negative distance from end point to goal with an additional cost for every step
 
-        done = -reward <= self.threshold # episode is done if distance from end point to goal is less than threshold
+        done = distance_to_goal <= self.threshold # episode is done if distance to goal is less than threshold
 
         return np.copy(self.state), reward, done, False, {} # last two returns are just to match gym .step()
     

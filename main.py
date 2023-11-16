@@ -107,7 +107,7 @@ def eval_run(agent, env, hypers, plot=False):
     state, _ = env.reset()
     for step in range(hypers["num_steps"]):
         action, action_no_noise = agent.get_action(state, step)
-        new_state, reward, done, _, _ = env.step(action_no_noise)
+        new_state, reward, done, _, _ = env.step(action_no_noise, step)
                 
         state = new_state
         episode_reward += reward
@@ -164,7 +164,7 @@ def train_loop(hypers, models_path=None, save=True):
 
         for step in range(hypers["num_steps"]):
             action, action_no_noise = agent.get_action(state, step)
-            new_state, reward, done, _, _ = env.step(action)
+            new_state, reward, done, _, _ = env.step(action, step)
             agent.replay_buffer.push(state, action, reward, new_state, done)
             
             if len(agent.replay_buffer) > hypers["batch_size"]:
