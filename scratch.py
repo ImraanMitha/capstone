@@ -1,38 +1,60 @@
-# from manipulator_environment import *
-# import numpy as np
-# env = Planar_Environment()
-# env.reset()
-# for i in range(5):
-#     env.step(np.array([0.1, 0.1]))
-#     fig, axs = plt.subplots(2,1)
-
-
-#     env.viz_arm()
-
-
+from manipulator_environment import Planar_Environment
 import numpy as np
+from collections import deque
+import gym
+import torch
 import matplotlib.pyplot as plt
-from manipulator_environment import *
+from IPython.display import clear_output
+import os
+from main import *
 
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+hypers = {"num_epochs": 1000,
+                "batch_size": 100,
+                "policy_lr": 1e-6,
+                "critic_lr": 0.01,
+                "gamma": 0.9,
+                "tau": 0.005,
+                "action_noise": "G",
+                "g_noise_std": 0.02,
+                "replay_buffer_size": int(1e6),
+                "hidden_units":100,
+                "num_steps": 500,
+                "configuration": [('R', 10), ('R', 10)],
+                }
 
 env = Planar_Environment()
-env.reset()
-vals = []
-plt.ion()
-for i in range(20):
-    vals.append(i)
-    env.step(np.array([0.1, -0.1]))
+num_actions = env.action_dim
+num_states = env.state_dim
+action_bound = env.action_bound
 
-    full_fig, axs = plt.subplots(2,1)
+agent = DDPGagent(action_bound, num_actions, num_states, device, hypers)
+agent.load("models/0075", device)
 
-    axs[0].plot(vals)
-    env.viz_arm(axs[1])
+# ret = eval_run(agent, env, hypers, goal=[-12.89, -14.43], plot=True)
+# print(ret)
 
-    inp = input()
-    if inp.lower() == 'exit':
-        break
-    
-    plt.close()
 
-plt.ioff()
-plt.close('all')
+
+
+
+num_evals = 1000
+eval_reward = 0
+worst_ret = 0
+eval_start_time = time.time()
+for run in range(num_evals):
+    ret = eval_run(agent, env, hypers, verbose=False)
+    eval_reward = eval_reward + ret
+    if ret < worst_ret:
+        worst_ret = ret
+
+print(f'worst episode return: {worst_ret}')
+
+eval_performance = eval_reward / num_evals # average avg dist to goal across evaluation runs
+print(f'Average reward over {num_evals} eval runs: {round(eval_performance, 4)} in {round(time.time()-eval_start_time, 2)} s')
+
+
+# for i in range(10):
+#     eval_run(agent, env, hypers, True)
+#     plt.show()

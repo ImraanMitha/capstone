@@ -50,11 +50,12 @@ class Planar_Environment(object):
 
         return goal_point
 
-    def reset(self):
+    def reset(self, goal=None):
         '''
         Resets arm to start position, generates a new goal and returns them combined as the state vector
         '''
-        new_goal = self.gen_goal() # 2d point (planar goal)
+        if goal is None:
+            goal = self.gen_goal() # 2d point (planar goal)
 
         # self.joint_angles = np.random.uniform(-np.pi, np.pi, self.num_joints)
         self.joint_angles = np.copy(np.array(self.start_angles))
@@ -70,8 +71,9 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        self.state = np.concatenate(([0], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], new_goal))
-        
+        # self.state = np.concatenate(([0], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], new_goal))
+        self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], goal))
+
         return np.copy(self.state), {} # returns the dict to match returns from gym .reset()
  
     def step(self, action, step):
@@ -95,10 +97,12 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        self.state = np.concatenate(([step], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
+        # self.state = np.concatenate(([step], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
+        self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
 
         distance_to_goal = np.linalg.norm(np.array(self.joint_end_points[-1]) - self.state[-2:])
-        reward = -distance_to_goal -self.step_cost*step # reward is the negative distance from end point to goal with an additional cost for every step
+        # reward = -distance_to_goal -self.step_cost*step # reward is the negative distance from end point to goal with an additional cost for every step
+        reward = -distance_to_goal
 
         done = distance_to_goal <= self.threshold # episode is done if distance to goal is less than threshold
 

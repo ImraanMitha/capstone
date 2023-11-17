@@ -8,7 +8,6 @@ from utils import *
 
 
 # agent consists of four networks, critic/actor and main/target
-#TODO: implement loading networks
 class DDPGagent:
     def __init__(self, action_bound, num_actions, num_states, device, hypers):
         # Params
@@ -58,6 +57,16 @@ class DDPGagent:
         # Loss histories
         self.policy_loss_history = [] # track policy loss
         self.critic_loss_history = [] # track critic loss
+
+    '''
+    Load the moel state dicts from a previous run. Expects the path to a dir with the 4 .pth files
+    '''
+    def load(self, dir, device):
+        self.actor.load_state_dict(torch.load(os.path.join(dir, 'actor.pth'), map_location=device))
+        self.actor_target.load_state_dict(torch.load(os.path.join(dir, 'actor_target.pth'), map_location=device))
+        self.critic.load_state_dict(torch.load(os.path.join(dir, 'critic.pth'), map_location=device))
+        self.critic_target.load_state_dict(torch.load(os.path.join(dir, 'critic_target.pth'), map_location=device))
+    
 
     '''
     Gets an action from the policy given the state, adds action noise if desired
