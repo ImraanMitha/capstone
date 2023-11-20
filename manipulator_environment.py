@@ -27,7 +27,7 @@ class Planar_Environment(object):
         self.joint_angles = np.array(self.start_angles, dtype=float) # keeping this as an array makes step() easier, maybe everything should just be an ndarray
         
         '''
-        State is 1+2*{num_joints}+2+2 vector whose first element is the current step, next 2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
+        State is 2*{num_joints}+2+2 vector whose first  2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
         self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk

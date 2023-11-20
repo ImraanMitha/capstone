@@ -41,7 +41,7 @@ def train_loop(hypers, models_path=None, save=True):
         state, _ = env.reset()
         episode_reward = 0
 
-        epoch_action_history = np.empty((0,2))
+        epoch_action_history = np.empty((0,num_actions))
         epoch_reward_history = np.empty((0,))
 
         for step in range(hypers["num_steps"]):
@@ -86,7 +86,7 @@ def train_loop(hypers, models_path=None, save=True):
     eval_start_time = time.time()
     for run in range(num_evals):
         print(f"Eval run {run}: ", end = "")
-        eval_reward += eval_run(agent, env, hypers)
+        eval_reward += eval_run(agent, env, hypers, plot=False)
 
     eval_performance = eval_reward / num_evals # average avg dist to goal across evaluation runs
     print(f'Average reward over {num_evals} eval runs: {round(eval_performance, 4)} in {round(time.time()-eval_start_time, 2)} s')
@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     hypers = {"num_epochs": 2000,
                 "batch_size": 100,
-                "policy_lr": 1e-6,
+                "policy_lr": 1e-7,
                 "critic_lr": 0.01,
                 "gamma": 0.9,
                 "tau": 0.005,
@@ -114,8 +114,8 @@ if __name__ == "__main__":
                 "g_noise_std": 0.02,
                 "replay_buffer_size": int(1e6),
                 "hidden_units": 100,
-                "num_steps": 300,
-                "configuration": [('R', 10), ('R', 10)],
+                "num_steps": 250,
+                "configuration": [('R', 5), ('R', 10), ('R', 5)],
                 }
     
     train_loop(hypers, models_path="models", save=True)

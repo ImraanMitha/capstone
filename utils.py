@@ -62,7 +62,6 @@ class OUNoise(object):
         self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma) * min(1.0, t / self.decay_period)
         return action + ou_state
 
-#TODO: all these viz tools should be in utils
 def end_plots(agent, rewards, avg_rewards, hypers):
     '''
     Plots of the actor/critic losses as well as the episodes reward, throughout the training
@@ -85,6 +84,7 @@ def end_plots(agent, rewards, avg_rewards, hypers):
     plt.show()
     return fig
 
+#TODO: need to update following two functions to work with 3+ joint arms
 def epoch_summary(episode, epoch_action_history, epoch_reward_history, rewards, action_bound):
     '''
     Plots of action (no noise) and reward throughout epoch as well as a running plot of the average epoch reward through training so far
@@ -137,8 +137,10 @@ def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_histo
     for ax in axs:
         ax.clear()
 
-    axs[0].plot(epoch_action_history[:, 0], label='action[0]')
-    axs[0].plot(epoch_action_history[:, 1], label='action[1]')
+    for i in range(env.action_dim):
+        axs[0].plot(epoch_action_history[:, i], label=f'action[{i}]')
+    # axs[0].plot(epoch_action_history[:, 0], label='action[0]')
+    # axs[0].plot(epoch_action_history[:, 1], label='action[1]')
     axs[0].plot(env.action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].plot(-env.action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].legend()
@@ -159,13 +161,14 @@ def eval_run(agent, env, hypers, goal=None, plot=False, verbose=True):
         pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,11))
 
     episode_reward = 0 
-    epoch_action_history = np.empty((0,2))
+    epoch_action_history = np.empty((0,env.action_dim))
     epoch_reward_history = np.empty((0,))
 
     state, _ = env.reset(goal)
     for step in range(hypers["num_steps"]):
         action, action_no_noise = agent.get_action(state, step)
         new_state, reward, done, _, _ = env.step(action_no_noise, step)
+        
                 
         state = new_state
         episode_reward += reward
