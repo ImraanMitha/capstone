@@ -80,7 +80,7 @@ def end_plots(agent, rewards, avg_rewards, hypers):
     axs[2].grid(True)
     axs[2].legend()
     axs[2].set_title("episode avg rewards")
-    fig.suptitle(f'{hypers["num_epochs"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise')
+    fig.suptitle(f'{hypers["num_episodes"]} epochs, {hypers["num_steps"]} steps, {hypers["batch_size"]} batch size, lr_p={hypers["policy_lr"]}, lr_c={hypers["critic_lr"]}, gamma={hypers["gamma"]}, tau={hypers["tau"]}, {hypers["action_noise"]} noise')
     plt.show()
     return fig
 
@@ -156,7 +156,7 @@ def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_histo
     plt.pause(0.001)
     plt.ioff()
 
-def eval_run(agent, env, hypers, goal=None, plot=False, verbose=True):
+def eval_run(run, agent, env, hypers, goal=None, plot=False, verbose=False):
     if plot:
         pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,11))
 
@@ -183,6 +183,6 @@ def eval_run(agent, env, hypers, goal=None, plot=False, verbose=True):
             plot_epoch(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
 
     if verbose:
-        print(f"average reward: {round(episode_reward/hypers['num_steps'], 3)}, \tgoal was {[round(value, 2) for value in state[-2:]]} {f'|Completion in {step} steps|' if done else ''}")
+        print(f"Eval run {run}: average reward: {round(episode_reward/hypers['num_steps'], 3)}, \tgoal was {[round(value, 2) for value in state[-2:]]} {f'|Completion in {step} steps|' if done else ''}")
 
-    return episode_reward/hypers['num_steps']
+    return episode_reward/hypers['num_steps']/env.working_radius

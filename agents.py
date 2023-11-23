@@ -7,7 +7,6 @@ from networks import *
 from utils import *
 
 
-# agent consists of four networks, critic/actor and main/target
 class DDPGagent:
     def __init__(self, action_bound, num_actions, num_states, device, hypers):
         # Params
@@ -76,7 +75,6 @@ class DDPGagent:
 
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
         action = self.actor(state)
-        # action = action.cpu().squeeze().detach().numpy()
         action = action.cpu().data.numpy().flatten()
 
         self.actor.train()

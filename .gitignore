@@ -5,8 +5,13 @@ __pycache__/
 *.pyd
 
 *.gdoc
+*.docx
+*.npy
+
 models/
 scratch.ipynb
 scratch.py
 q_learn_test.ipynb
 run.ipynb
+Experiment.py
+scratch2.py

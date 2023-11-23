@@ -9,7 +9,7 @@ class Planar_Environment(object):
     def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-1, step_cost=1/400):
         self.action_bound = np.array([action_bound])
         self.configuration = configuration
-        self.num_joints =len(configuration) # dont actually need this, but I like having it
+        self.num_joints =len(configuration) 
 
         # Sets starting angle of the joints
         if start_angles is None:
@@ -20,17 +20,19 @@ class Planar_Environment(object):
             self.start_angles = start_angles
 
         self.threshold = threshold # minimum distance from end point to goal to be considered done
+
+        # not used right now
         self.step_cost = step_cost # incremental cost (-reward) per step to incentivize non zero action when close to goal
 
         self.joint_end_points = [] # list of tuples representing the end points of each joint in the arm
         self.working_radius = sum(joint[1] for joint in self.configuration) # max reachable radius, only used for plotting
-        self.joint_angles = np.array(self.start_angles, dtype=float) # keeping this as an array makes step() easier, maybe everything should just be an ndarray
+        self.joint_angles = np.array(self.start_angles, dtype=float) # keeping this as an array makes step() easier
         
         '''
         State is 2*{num_joints}+2+2 vector whose first  2*{num_joints} elements represent cos's of joint angles then sin's of joint angles, 
         the next two elements represent the x,y of the end effector and last two represent x,y of goal
         '''
-        self.state, _ = self.reset() # dont think its a problem that we call .reset() when we init env and then also call reset outside but idk
+        self.state, _ = self.reset() 
         
         # redundant here but makes code more clear when calling from outside the class
         self.action_dim = self.num_joints
