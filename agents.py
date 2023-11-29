@@ -6,7 +6,10 @@ import torch.nn as nn
 from networks import *
 from utils import *
 
-
+'''
+Class to implement a DDPG agent, it contains all the networks of
+the agent, their training tools and its functions.
+'''
 class DDPGagent:
     def __init__(self, action_bound, num_actions, num_states, device, hypers):
         # Params
@@ -37,13 +40,13 @@ class DDPGagent:
         # for layer in self.actor.children():
         #     nn.init.uniform_(layer.weight, -0.01, 0.01)
         #     nn.init.zeros_(layer.bias)
-
+        #
         # for layer in self.critic.children():
         #     nn.init.uniform_(layer.weight, -0.01, 0.01)
         #     nn.init.zeros_(layer.bias)
         #############################################
 
-        # copy target networks state dicts
+        # Copy target networks state dicts
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.actor_target.load_state_dict(self.actor.state_dict())
         
@@ -58,7 +61,7 @@ class DDPGagent:
         self.critic_loss_history = [] # track critic loss
 
     '''
-    Load the moel state dicts from a previous run. Expects the path to a dir with the 4 .pth files
+    Load the moel state dicts from a previous run. Expects the path to a dir with the 4 .pth files.
     '''
     def load(self, dir, device):
         self.actor.load_state_dict(torch.load(os.path.join(dir, 'actor.pth'), map_location=device))
@@ -68,10 +71,10 @@ class DDPGagent:
     
 
     '''
-    Gets an action from the policy given the state, adds action noise if desired
+    Gets an action from the policy given the state, adds action noise if desired, and clips to action bounds.
     '''
     def get_action(self, state, step):
-        self.actor.eval() # placed in eval mode for this step since network involves bn layers
+        self.actor.eval() # placed in eval mode for this step since some network involves batch norm layers
 
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
         action = self.actor(state)
@@ -84,14 +87,14 @@ class DDPGagent:
         if self.action_noise == 'G':
             noise = np.random.normal(0, self.gaussian_noise_std, action.shape)
             action = action + noise 
-        elif self.action_noise == "OU": #not well implemented, sigmas are way too big
+        elif self.action_noise == "OU": # not well implemented, sigmas are way too big
             action = self.ou_noise.add_noise(action, step)
 
         action = np.clip(action, -self.action_bound, self.action_bound)
         return action, action_no_noise
 
     '''
-    updates the networks using batches sampled from the replay buffer. Based on standard ddpg theory
+    Updates the networks using batches sampled from the replay buffer. Based on standard DDPG theory.
     '''
     def update(self, batch_size):
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size)
@@ -101,8 +104,7 @@ class DDPGagent:
         actions = torch.FloatTensor(actions).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
         next_states = torch.FloatTensor(next_states).to(self.device)
-
-        dones = torch.FloatTensor(dones.reshape(-1, 1)).to(self.device) # should just have this convert dones directly and in target_Q do (1-done) 
+        dones = torch.FloatTensor(dones.reshape(-1, 1)).to(self.device)  
     
         ### Critic loss ###
         # target Q values (based on target network)
@@ -121,7 +123,7 @@ class DDPGagent:
         critic_loss.backward() 
         self.critic_optimizer.step()
 
-        # Actor loss
+        ### Actor loss ###
         policy_loss = -self.critic(states, self.actor(states)).mean()
 
         # optimize actor
@@ -129,11 +131,11 @@ class DDPGagent:
         policy_loss.backward()
         self.actor_optimizer.step()
 
-        # for visualizing loss history
+        # For visualizing loss history
         self.critic_loss_history.append(critic_loss.cpu().detach().numpy())
         self.policy_loss_history.append(policy_loss.cpu().detach().numpy())
 
-        # update target networks 
+        # Update target networks w/ polyak averaging.
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
        
@@ -141,7 +143,7 @@ class DDPGagent:
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
 
     '''
-    saves all 4 models, plot png, and loss arrays under ./models/ directory in increminting subdirectories each run
+    Saves all 4 models, plot png, and loss arrays under ./models/ in increminting subdirectories each run.
     '''
     def save(self, models_path, rewards, avg_rewards, fig, eval_performance):
         zero_fill = 4
@@ -162,13 +164,13 @@ class DDPGagent:
         torch.save(self.actor_target.state_dict(), os.path.join(next_dir_path, 'actor_target.pth'))
         torch.save(self.critic_target.state_dict(), os.path.join(next_dir_path, 'critic_target.pth'))
 
-        # save parameters to a txt file
+        # Save parameters and performance to a txt file
         parameter_file = os.path.join(next_dir_path, "parameters.txt")
         with open(parameter_file, 'w') as f:
             f.write(f'Run {next_subdir}\n\n')
             for key, value in self.hypers.items():
                 f.write(f"{key}:\t{value}\n")
-            f.write(f'\nAverage evaluation reward: {eval_performance}')
+            f.write(f'\nNormalized evaluation performance: {eval_performance}')
         
         # save loss arrays
         np.save(os.path.join(next_dir_path, "policy_loss.npy"), np.array(self.policy_loss_history))

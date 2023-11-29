@@ -2,20 +2,20 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
+'''
+Environment class that implements a planar, rotary robotic manipulator.
+'''
 class Planar_Environment(object):
-    '''
-    Environement for planar n-rotary joint robotic arm
-    '''
     def __init__(self, action_bound = 0.1, configuration=[('R', 10), ('R', 10)], start_angles = None, threshold = 1e-1, step_cost=1/400):
         self.action_bound = np.array([action_bound])
-        self.configuration = configuration
+        self.configuration = configuration # configuration of manipulator
         self.num_joints =len(configuration) 
 
         # Sets starting angle of the joints
         if start_angles is None:
             self.start_angles = [0.] * self.num_joints
         elif len(start_angles) != self.num_joints:
-            raise Exception("provided start angles do not match number of joints")
+            raise Exception("Error: provided start angles do not match number of joints")
         else:
             self.start_angles = start_angles
 
@@ -38,10 +38,13 @@ class Planar_Environment(object):
         self.action_dim = self.num_joints
         self.state_dim = len(self.state)
 
+    '''
+    Generates a coordinate in manipulators working space,
+    this is done by randomly generating angles in the range [-pi,pi]
+    and stepping the manuipulator by those angles.
+    '''
     def gen_goal(self):
-        '''
-        Generates a coordinate in manipulators working space
-        '''
+  
         rand_angs = np.random.uniform(-np.pi, np.pi, self.num_joints)
         goal_point  = [0, 0]
         cur_angle = 0
@@ -52,10 +55,11 @@ class Planar_Environment(object):
 
         return goal_point
 
+    '''
+    Resets arm to start position, generates a new goal
+    and returns them combined as the state vector.
+    '''
     def reset(self, goal=None):
-        '''
-        Resets arm to start position, generates a new goal and returns them combined as the state vector
-        '''
         if goal is None:
             goal = self.gen_goal() # 2d point (planar goal)
 
@@ -66,6 +70,7 @@ class Planar_Environment(object):
         end_point = [0, 0]
         self.joint_end_points = [end_point.copy()]
         cur_angle = 0
+
         # iterate through joints
         for i, joint in enumerate(self.configuration):
             cur_angle += self.joint_angles[i] # current frame angle += angle of joint i
@@ -73,18 +78,17 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        # self.state = np.concatenate(([0], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], new_goal))
         self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], goal))
 
         return np.copy(self.state), {} # returns the dict to match returns from gym .reset()
  
-    def step(self, action, step):
-        '''
-        Steps the manipulator by the action provided. Action is expected to be delta_joint_angle in radians
-        '''
+    '''
+    Steps the manipulator by the action provided. 
+    Action is expected to be delta_joint_angle in radians.
+    '''
+    def step(self, action, step=0):
         if len(action) != self.num_joints:
-            print("Error: action sent to environment does not match the number of joints")
-            return None # in this condition should maybe exit instead 
+            raise Exception("Error: action sent to environment does not match the number of joints")
         
         self.joint_angles += action # add commanded delta angles to joint angles
 
@@ -99,22 +103,22 @@ class Planar_Environment(object):
             end_point[1] += joint[1]*np.sin(cur_angle)
             self.joint_end_points.append(end_point.copy())
 
-        # self.state = np.concatenate(([step], np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
+        # update state
         self.state = np.concatenate((np.cos(self.joint_angles), np.sin(self.joint_angles), self.joint_end_points[-1], self.state[-2:]))
 
+        # compute reward
         distance_to_goal = np.linalg.norm(np.array(self.joint_end_points[-1]) - self.state[-2:])
-        # reward = -distance_to_goal -self.step_cost*step # reward is the negative distance from end point to goal with an additional cost for every step
         reward = -distance_to_goal
 
+        # check terminal status
         done = distance_to_goal <= self.threshold # episode is done if distance to goal is less than threshold
 
         return np.copy(self.state), reward, done, False, {} # last two returns are just to match gym .step()
     
-
+    '''
+    Plots the joints, links, goal and workspace.
+    '''
     def viz_arm(self, axs=None):
-        '''
-        Plots the joints with the workspace outline
-        '''
         show = True if axs is None else False
         x_coors, y_coors = zip(*self.joint_end_points)
 

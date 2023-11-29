@@ -3,6 +3,11 @@ from collections import deque
 import random
 import matplotlib.pyplot as plt
 
+'''
+Class to define the replay buffer used during training. Implements a buffer of specified
+max size, defines a push() function to add experiences, and a sample() function to
+sample a random batch of experiences.
+'''
 class ReplayBuffer:
     def __init__(self, buf_size):
         self.buf_size = buf_size
@@ -35,7 +40,9 @@ class ReplayBuffer:
         return len(self.buffer)
 
 '''
-Not using this right now, the sigma are too large and I have my doubts about the implementation, eg in add_noise(), max_sigma-min_sigma is always 0 no?
+Class to implement  Ornstein-Uhlenbeck noise, not used right now,
+the sigma are too large and I have my doubts about the implementation,
+eg in add_noise(), max_sigma-min_sigma is always 0 with the implementation defaults.
 '''
 class OUNoise(object):
     def __init__(self, action_dim, mu=0.0, theta=0.15, max_sigma=0.3, min_sigma=0.3, decay_period=100000):
@@ -62,10 +69,11 @@ class OUNoise(object):
         self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma) * min(1.0, t / self.decay_period)
         return action + ou_state
 
+'''
+Plots of the actor/critic losses as well as the episodes reward, throughout the training.
+'''
 def end_plots(agent, rewards, avg_rewards, hypers):
-    '''
-    Plots of the actor/critic losses as well as the episodes reward, throughout the training
-    '''
+
     fig, axs = plt.subplots(3, 1, figsize=(10, 9))
     axs[0].plot(agent.policy_loss_history, label="policy loss")
     axs[0].grid(True)
@@ -84,33 +92,50 @@ def end_plots(agent, rewards, avg_rewards, hypers):
     plt.show()
     return fig
 
-#TODO: need to update following two functions to work with 3+ joint arms
+'''
+Plots of action (no noise) and reward throughout epoch as well as
+a running plot of the average return through training so far.
+'''
 def epoch_summary(episode, epoch_action_history, epoch_reward_history, rewards, action_bound):
-    '''
-    Plots of action (no noise) and reward throughout epoch as well as a running plot of the average epoch reward through training so far
-    '''
-    fig, axs = plt.subplots(3, 1, figsize=(20,9))
-    axs[0].plot(epoch_action_history[:, 0], label='action[0]')
-    axs[0].plot(epoch_action_history[:, 1], label='action[1]')
+    action_dim = epoch_action_history.shape[1]
+    fig, axs = plt.subplots(action_dim, 1, figsize=(20,9))
+    # plot actions
+    for i in range(action_dim):
+        axs[0].plot(epoch_action_history[:, i], label=f'action[{i}]')
+
+    # add action bounds to plot
     axs[0].plot(action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].plot(-action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
-    axs[1].plot(epoch_reward_history)
-    axs[2].plot(rewards)
     axs[0].legend()
     axs[0].set_title("no noise actions")
+
+    # plot reward per step
+    axs[1].plot(epoch_reward_history)
     axs[1].set_title("reward")
+
+
+    # plot return
+    axs[2].plot(rewards)
     axs[2].set_title("episode avg rewards")
+    
     fig.suptitle(f'episode {episode}')
     for ax in axs:
         ax.grid(True)
     plt.show()  
 
+'''
+Deprecated, use plot_episode instead. Can still be useful to visualize
+one step but since it instantiates its own fig & axs it can only do one step
+and env.viz_arm is sufficient if you dont need action and reward plots.
+'''
 def step_viz(step, epoch_action_history, epoch_reward_history, action_bound, reward, state, env):
     # block to visualize action, arm pose and reward through the epoch
     plt.ion()
-    fig, axs = plt.subplots(3, 1, figsize=(20,9))
-    axs[0].plot(epoch_action_history[:, 0], label='action[0]')
-    axs[0].plot(epoch_action_history[:, 1], label='action[1]')
+
+    fig, axs = plt.subplots(env.action_dim, 1, figsize=(20,9))
+    for i in range(env.action_dim):
+        axs[0].plot(epoch_action_history[:, i], label=f'action[{i}]')
+
     axs[0].plot(action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].plot(-action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].legend()
@@ -132,15 +157,17 @@ def step_viz(step, epoch_action_history, epoch_reward_history, action_bound, rew
         return False
     return True
 
-def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_history, reward, state, env):
+'''
+Plots the actions, reward and environment throughout the episode.
+'''
+def plot_episode(fig, axs, episode, step, epoch_action_history, epoch_reward_history, reward, state, env):
     plt.ion()
     for ax in axs:
         ax.clear()
 
     for i in range(env.action_dim):
         axs[0].plot(epoch_action_history[:, i], label=f'action[{i}]')
-    # axs[0].plot(epoch_action_history[:, 0], label='action[0]')
-    # axs[0].plot(epoch_action_history[:, 1], label='action[1]')
+
     axs[0].plot(env.action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].plot(-env.action_bound*np.ones_like(epoch_action_history[:, 0]), color='red', linewidth = 0.5)
     axs[0].legend()
@@ -156,22 +183,25 @@ def plot_epoch(fig, axs, episode, step, epoch_action_history, epoch_reward_histo
     plt.pause(0.001)
     plt.ioff()
 
+'''
+Performs evaluation runs, env is stepped with no noise actions, returns normalized return.
+'''
 def eval_run(run, agent, env, hypers, goal=None, plot=False, verbose=False):
     if plot:
         pe_fig, pe_axs = plt.subplots(3, 1, figsize=(20,11))
 
-    episode_reward = 0 
+    episode_return = 0 
     epoch_action_history = np.empty((0,env.action_dim))
     epoch_reward_history = np.empty((0,))
 
     state, _ = env.reset(goal)
     for step in range(hypers["num_steps"]):
+
         action, action_no_noise = agent.get_action(state, step)
         new_state, reward, done, _, _ = env.step(action_no_noise, step)
-        
-                
+
         state = new_state
-        episode_reward += reward
+        episode_return += reward
         
         epoch_action_history = np.append(epoch_action_history, np.array([action_no_noise]), axis=0)
         epoch_reward_history = np.append(epoch_reward_history, reward)
@@ -180,9 +210,10 @@ def eval_run(run, agent, env, hypers, goal=None, plot=False, verbose=False):
             break
 
         if plot:
-            plot_epoch(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
+            plot_episode(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
 
+    normalized_return = episode_return/hypers['num_steps']/env.working_radius
     if verbose:
-        print(f"Eval run {run}: average reward: {round(episode_reward/hypers['num_steps'], 3)}, \tgoal was {[round(value, 2) for value in state[-2:]]} {f'|Completion in {step} steps|' if done else ''}")
+        print(f"Eval run {run}: normalized return: {round(normalized_return, 3)}, \tgoal was {[round(value, 2) for value in state[-2:]]} {f'|Completion in {step} steps|' if done else ''}")
 
-    return episode_reward/hypers['num_steps']/env.working_radius
+    return normalized_return

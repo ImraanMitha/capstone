@@ -11,7 +11,8 @@ __pycache__/
 models/
 scratch.ipynb
 scratch.py
+scratch2.py
+scratch3.py
 q_learn_test.ipynb
 run.ipynb
 Experiment.py
-scratch2.py
