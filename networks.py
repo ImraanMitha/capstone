@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 import numpy as np
 
-# Policy network
+################ Generalization networks ##################
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_size, action_bound):
         super(Actor, self).__init__()
@@ -34,6 +34,38 @@ class Critic(nn.Module):
         x = F.relu(self.l2(x))
         x = self.l3(x)
         return x
+###########################################################
+
+
+
+
+# ################# Fundamental networks ##################
+# class Actor(nn.Module):
+#     def __init__(self, state_dim, action_dim, hidden_size, action_bound):
+#         super(Actor, self).__init__()
+#         max_action = float(action_bound[0])
+#         self.l1 = nn.Linear(state_dim, 100)
+#         self.l2 = nn.Linear(100, action_dim)
+#         self.max_action = max_action
+
+#     def forward(self, x):
+#         x = F.relu(self.l1(x))
+#         x = self.max_action * torch.tanh(self.l2(x))
+#         return x
+
+
+# class Critic(nn.Module):
+#     def __init__(self, state_dim, action_dim, hidden_size):
+#         super(Critic, self).__init__()
+#         self.l1 = nn.Linear(state_dim + action_dim, 100)
+#         self.l2 = nn.Linear(100, 1)
+
+#     def forward(self, x, u):
+#         x = F.relu(self.l1(torch.cat([x, u], 1)))
+#         x = self.l2(x)
+#         return x
+# #########################################################
+
 
 
 # Q value estimator networks
@@ -116,31 +148,4 @@ class Critic(nn.Module):
 #         x = self.l4(x)
 #         return x
 
-
-# ################# main ones ##################
-# class Actor(nn.Module):
-#     def __init__(self, state_dim, action_dim, hidden_size, action_bound):
-#         super(Actor, self).__init__()
-#         max_action = float(action_bound[0])
-#         self.l1 = nn.Linear(state_dim, 100)
-#         self.l2 = nn.Linear(100, action_dim)
-#         self.max_action = max_action
-
-#     def forward(self, x):
-#         x = F.relu(self.l1(x))
-#         x = self.max_action * torch.tanh(self.l2(x))
-#         return x
-
-
-# class Critic(nn.Module):
-#     def __init__(self, state_dim, action_dim, hidden_size):
-#         super(Critic, self).__init__()
-#         self.l1 = nn.Linear(state_dim + action_dim, 100)
-#         self.l2 = nn.Linear(100, 1)
-
-#     def forward(self, x, u):
-#         x = F.relu(self.l1(torch.cat([x, u], 1)))
-#         x = self.l2(x)
-#         return x
-# ###############################################
 

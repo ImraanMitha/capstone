@@ -206,12 +206,16 @@ def eval_run(run, agent, env, hypers, goal=None, plot=False, verbose=False):
         epoch_action_history = np.append(epoch_action_history, np.array([action_no_noise]), axis=0)
         epoch_reward_history = np.append(epoch_reward_history, reward)
 
-        if done:
-            break
 
         if plot:
             plot_episode(pe_fig, pe_axs, "EVAL", step, epoch_action_history, epoch_reward_history, reward, state, env)
-
+        
+        if done:
+            # if plot:
+            #     input()
+            break
+    if plot:
+        input()
     normalized_return = episode_return/hypers['num_steps']/env.working_radius
     if verbose:
         print(f"Eval run {run}: normalized return: {round(normalized_return, 3)}, \tgoal was {[round(value, 2) for value in state[-2:]]} {f'|Completion in {step} steps|' if done else ''}")

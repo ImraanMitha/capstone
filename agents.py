@@ -61,7 +61,7 @@ class DDPGagent:
         self.critic_loss_history = [] # track critic loss
 
     '''
-    Load the moel state dicts from a previous run. Expects the path to a dir with the 4 .pth files.
+    Load the model state dicts from a previous run. Expects the path to a dir with the 4 .pth files.
     '''
     def load(self, dir, device):
         self.actor.load_state_dict(torch.load(os.path.join(dir, 'actor.pth'), map_location=device))
@@ -69,7 +69,6 @@ class DDPGagent:
         self.critic.load_state_dict(torch.load(os.path.join(dir, 'critic.pth'), map_location=device))
         self.critic_target.load_state_dict(torch.load(os.path.join(dir, 'critic_target.pth'), map_location=device))
     
-
     '''
     Gets an action from the policy given the state, adds action noise if desired, and clips to action bounds.
     '''
